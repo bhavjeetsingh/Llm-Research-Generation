@@ -64,7 +64,9 @@ def build_interview_graph(llm,tavily_search=None):
         search_query = structure_llm.invoke([GENERATE_SEARCH_QUERY]+state["messages"])
         
         # Search
-        search_docs = tavily_search.invoke(search_query.search_query)
+        search_docs = tavily_search.invoke(search_query.search_query,)
+        print("********************")
+        print(search_docs)
         # Format
         formatted_search_docs = "\n\n---\n\n".join(
             [
@@ -152,7 +154,7 @@ class AutonomousReportGenerator:
         """
         self.llm = llm
         self.memory = MemorySaver()
-        self.tavily_search = TavilySearchResults()
+        self.tavily_search = TavilySearchResults(tavily_api_key="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")
     
     def create_analyst(self,state:GenerateAnalystsState):
         """_summary_
@@ -373,7 +375,7 @@ if __name__ == "__main__":
         
         graph = reporter.build_graph()
         
-        topic = ""
+        topic = "How can generative help us to play the cricket?"
         
         thread = {"configurable": {"thread_id": "1"}}
         
