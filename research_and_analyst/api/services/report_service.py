@@ -47,19 +47,40 @@ class ReportService:
             self.logger.error("Error updating feedback", error=str(e))
             raise ResearchAnalystException("Failed to update feedback", e)
 
+    # def get_report_status(self, thread_id: str):
+    #     """Fetch latest state or final report."""
+    #     try:
+    #         thread = {"configurable": {"thread_id": thread_id}}
+    #         state = self.graph.get_state(thread)
+    #         if not state:
+    #             self.logger.warning("No state found for thread", thread_id=thread_id)
+    #             return {"status": "not_found"}
+
+    #         final_report = state.values.get("final_report")
+    #         if final_report:
+    #             file_docx = self.reporter.save_report(final_report, "AI_Report", "docx")
+    #             file_pdf = self.reporter.save_report(final_report, "AI_Report", "pdf")
+    #             return {
+    #                 "status": "completed",
+    #                 "docx_path": file_docx,
+    #                 "pdf_path": file_pdf,
+    #             }
+    #         return {"status": "in_progress"}
+    #     except Exception as e:
+    #         self.logger.error("Error fetching report status", error=str(e))
+    #         raise ResearchAnalystException("Failed to fetch report status", e)
     def get_report_status(self, thread_id: str):
         """Fetch latest state or final report."""
         try:
             thread = {"configurable": {"thread_id": thread_id}}
             state = self.graph.get_state(thread)
-            if not state:
-                self.logger.warning("No state found for thread", thread_id=thread_id)
-                return {"status": "not_found"}
-
             final_report = state.values.get("final_report")
+            topic = state.values.get("topic", "AI_Report") 
+
             if final_report:
-                file_docx = self.reporter.save_report(final_report, "AI_Report", "docx")
-                file_pdf = self.reporter.save_report(final_report, "AI_Report", "pdf")
+                # now topic-based report folder name
+                file_docx = self.reporter.save_report(final_report, topic, "docx")
+                file_pdf = self.reporter.save_report(final_report, topic, "pdf")
                 return {
                     "status": "completed",
                     "docx_path": file_docx,
@@ -82,48 +103,3 @@ class ReportService:
                     media_type="application/octet-stream"
                 )
         return {"error": f"File {file_name} not found"}
-
-
-# import os
-# from fastapi.responses import FileResponse
-# from research_and_analyst.utils.model_loader import ModelLoader
-# from research_and_analyst.workflows.report_generator_workflow import AutonomousReportGenerator
-
-
-# class ReportService:
-#     def __init__(self):
-#         self.llm = ModelLoader().load_llm()
-#         self.generator = AutonomousReportGenerator(self.llm)
-
-#     def generate_report(self, topic: str):
-#         graph = self.generator.build_graph()
-#         thread = {"configurable": {"thread_id": "1"}}
-
-#         for _ in graph.stream({"topic": topic, "max_analysts": 3}, thread, stream_mode="values"):
-#             pass
-
-#         return topic  # just returns topic for progress page
-
-#     def submit_feedback(self, topic: str, feedback: str):
-#         graph = self.generator.build_graph()
-#         thread = {"configurable": {"thread_id": "1"}}
-
-#         graph.update_state(
-#             thread,
-#             {"human_analyst_feedback": feedback, "topic": topic},
-#             as_node="human_feedback",
-#         )
-
-#         for _ in graph.stream(None, thread, stream_mode="values"):
-#             pass
-
-#         final_state = graph.get_state(thread)
-#         final_report = final_state.values.get("final_report")
-
-#         if not final_report:
-#             self.generator.logger.warning("Final report is None, using fallback.")
-#             final_report = f"Report on '{topic}' generated, but no text found."
-
-#         doc_path = self.generator.save_report(final_report, topic, "docx")
-#         pdf_path = self.generator.save_report(final_report, topic, "pdf")
-#         return doc_path, pdf_path
