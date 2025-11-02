@@ -29,7 +29,7 @@ from research_and_analyst.backend_server.models import (
 )
 
 from research_and_analyst.utils.model_loader import ModelLoader
-from research_and_analyst.prompt_lib.prompts import *
+from research_and_analyst.prompt_lib.prompt_locator import *
 
 
 def build_interview_graph(llm,tavily_search=None):
@@ -64,9 +64,7 @@ def build_interview_graph(llm,tavily_search=None):
         search_query = structure_llm.invoke([GENERATE_SEARCH_QUERY]+state["messages"])
         
         # Search
-        search_docs = tavily_search.invoke(search_query.search_query,)
-        print("********************")
-        print(search_docs)
+        search_docs = tavily_search.invoke(search_query.search_query)
         # Format
         formatted_search_docs = "\n\n---\n\n".join(
             [
@@ -154,26 +152,36 @@ class AutonomousReportGenerator:
         """
         self.llm = llm
         self.memory = MemorySaver()
-        self.tavily_search = TavilySearchResults(tavily_api_key="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")
+        self.tavily_search = TavilySearchResults()
     
     def create_analyst(self,state:GenerateAnalystsState):
-        """_summary_
+        """Create analyst personas based on the given topic and feedback.
+        
+        Args:
+            state (GenerateAnalystsState): Current state containing topic and other parameters
+            
+        Returns:
+            dict: Dictionary containing the generated analysts
         """
         topic = state["topic"]
         max_analysts = state["max_analysts"]
         human_analyst_feedback = state.get("human_analyst_feedback","")
         
-        structured_llm = llm.with_structured_output(Perspectives)
+        structured_llm = self.llm.with_structured_output(Perspectives)
         
-        system_messages = CREATE_ANALYSTS_PROMPT.format(
+        # Render the Jinja2 template
+        system_messages = CREATE_ANALYSTS_PROMPT.render(
             topic=topic,
             max_analysts=max_analysts,
             human_analyst_feedback=human_analyst_feedback
-            
-            )
-        analysts = structured_llm.invoke([SystemMessage(content=system_messages)]+ [HumanMessage(content="Generate the set of analysts.")])
+        )
         
-        # Write the list of analysis to state
+        analysts = structured_llm.invoke([
+            SystemMessage(content=system_messages),
+            HumanMessage(content="Generate the set of analysts.")
+        ])
+        
+        # Write the list of analysts to state
         return {"analysts": analysts.analysts}
     
     def human_feedback(self):
@@ -375,7 +383,7 @@ if __name__ == "__main__":
         
         graph = reporter.build_graph()
         
-        topic = "How can generative help us to play the cricket?"
+        topic = "along with the genetive ai in future tell me the future of indian team"
         
         thread = {"configurable": {"thread_id": "1"}}
         
