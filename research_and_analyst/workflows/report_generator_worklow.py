@@ -321,7 +321,7 @@ if __name__ == "__main__":
         reporter = AutonomousReportGenerator(llm)
         graph = reporter.build_graph()
 
-        topic = "Impact of GenAI over the Future of Jobs?"
+        topic = "Impact of LLMs over the Future of Jobs?"
         thread = {"configurable": {"thread_id": "1"}}
         reporter.logger.info("Starting report generation pipeline", topic=topic)
 

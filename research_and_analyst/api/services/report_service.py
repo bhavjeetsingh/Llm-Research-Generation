@@ -1,13 +1,21 @@
 import uuid
+import os
+from fastapi.responses import FileResponse
 from research_and_analyst.utils.model_loader import ModelLoader
 from research_and_analyst.workflows.report_generator_workflow import AutonomousReportGenerator
 from research_and_analyst.logger import GLOBAL_LOGGER
 from research_and_analyst.exception.custom_exception import ResearchAnalystException
+from langgraph.checkpoint.memory import MemorySaver
+
+
+_shared_memory = MemorySaver()
+
 
 class ReportService:
     def __init__(self):
         self.llm = ModelLoader().load_llm()
         self.reporter = AutonomousReportGenerator(self.llm)
+        self.reporter.memory = _shared_memory 
         self.graph = self.reporter.build_graph()
         self.logger = GLOBAL_LOGGER.bind(module="ReportService")
 
@@ -26,7 +34,7 @@ class ReportService:
             self.logger.error("Error initiating report generation", error=str(e))
             raise ResearchAnalystException("Failed to start report generation", e)
 
-    def update_feedback(self, thread_id: str, feedback: str):
+    def submit_feedback(self, thread_id: str, feedback: str):
         """Update human feedback in graph state."""
         try:
             thread = {"configurable": {"thread_id": thread_id}}
@@ -44,6 +52,10 @@ class ReportService:
         try:
             thread = {"configurable": {"thread_id": thread_id}}
             state = self.graph.get_state(thread)
+            if not state:
+                self.logger.warning("No state found for thread", thread_id=thread_id)
+                return {"status": "not_found"}
+
             final_report = state.values.get("final_report")
             if final_report:
                 file_docx = self.reporter.save_report(final_report, "AI_Report", "docx")
@@ -57,3 +69,61 @@ class ReportService:
         except Exception as e:
             self.logger.error("Error fetching report status", error=str(e))
             raise ResearchAnalystException("Failed to fetch report status", e)
+
+    @staticmethod
+    def download_file(file_name: str):
+        """Download generated report."""
+        report_dir = os.path.join(os.getcwd(), "generated_report")
+        for root, _, files in os.walk(report_dir):
+            if file_name in files:
+                return FileResponse(
+                    path=os.path.join(root, file_name),
+                    filename=file_name,
+                    media_type="application/octet-stream"
+                )
+        return {"error": f"File {file_name} not found"}
+
+
+# import os
+# from fastapi.responses import FileResponse
+# from research_and_analyst.utils.model_loader import ModelLoader
+# from research_and_analyst.workflows.report_generator_workflow import AutonomousReportGenerator
+
+
+# class ReportService:
+#     def __init__(self):
+#         self.llm = ModelLoader().load_llm()
+#         self.generator = AutonomousReportGenerator(self.llm)
+
+#     def generate_report(self, topic: str):
+#         graph = self.generator.build_graph()
+#         thread = {"configurable": {"thread_id": "1"}}
+
+#         for _ in graph.stream({"topic": topic, "max_analysts": 3}, thread, stream_mode="values"):
+#             pass
+
+#         return topic  # just returns topic for progress page
+
+#     def submit_feedback(self, topic: str, feedback: str):
+#         graph = self.generator.build_graph()
+#         thread = {"configurable": {"thread_id": "1"}}
+
+#         graph.update_state(
+#             thread,
+#             {"human_analyst_feedback": feedback, "topic": topic},
+#             as_node="human_feedback",
+#         )
+
+#         for _ in graph.stream(None, thread, stream_mode="values"):
+#             pass
+
+#         final_state = graph.get_state(thread)
+#         final_report = final_state.values.get("final_report")
+
+#         if not final_report:
+#             self.generator.logger.warning("Final report is None, using fallback.")
+#             final_report = f"Report on '{topic}' generated, but no text found."
+
+#         doc_path = self.generator.save_report(final_report, topic, "docx")
+#         pdf_path = self.generator.save_report(final_report, topic, "pdf")
+#         return doc_path, pdf_path

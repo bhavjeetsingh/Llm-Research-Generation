@@ -1,4 +1,3 @@
-@@ -0,0 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -13,17 +12,35 @@
 
       {% if not pdf_path %}
         <p class="subtitle">Your AI-generated report is ready! You can refine it below 👇</p>
+        
+        <!-- 🔹 Feedback form -->
         <form method="post" action="/submit_feedback">
+          <!-- Hidden topic -->
           <input type="hidden" name="topic" value="{{ topic }}">
-          <textarea name="feedback" rows="6" placeholder="Enter feedback here...">{{ feedback }}</textarea>
+          <!-- Hidden thread_id (needed for workflow continuity) -->
+          <input type="hidden" name="thread_id" value="{{ thread_id }}">
+          
+          <!-- Feedback box -->
+          <textarea 
+            name="feedback" 
+            rows="6" 
+            placeholder="Enter feedback here...">{{ feedback }}</textarea>
+          
+          <!-- Submit button -->
           <button type="submit">💬 Submit Feedback</button>
         </form>
+
+        <p class="note">
+          💡 Tip: Provide specific feedback like “Add more technical explanation” or “Focus on real-world examples”.
+        </p>
+
       {% else %}
         <h3>✅ Final Report Ready!</h3>
         <div class="downloads">
           <a href="/download/{{ doc_path | basename }}" class="download-btn">⬇️ Download DOCX</a>
           <a href="/download/{{ pdf_path | basename }}" class="download-btn">📘 Download PDF</a>
         </div>
+        <p class="subtitle">🎉 Great work! Your report was successfully generated using AI.</p>
       {% endif %}
     </div>
   </div>
