@@ -50,4 +50,4 @@ ENV JAVA_OPTS="-Djenkins.install.runSetupWizard=true"
 # Expose Jenkins port
 EXPOSE 8080
 
-# Jenkins will use the default entrypoint from the base image
+# Jenkins will use the default entrypoint from the base imagejenkins-research-report-sp
