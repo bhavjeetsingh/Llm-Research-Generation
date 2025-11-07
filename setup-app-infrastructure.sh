@@ -7,8 +7,8 @@ set -e
 
 # Configuration
 APP_RESOURCE_GROUP="research-report-app-rg"
-LOCATION="eastus"
-APP_ACR_NAME="researchreportacr"
+LOCATION="eastasia"
+APP_ACR_NAME="researchreportacr$(openssl rand -hex 2)"
 CONTAINER_ENV="research-report-env"
 # Generate unique storage account name (max 24 chars, lowercase, alphanumeric only)
 STORAGE_ACCOUNT="reportapp$(date +%s | tail -c 7)"

@@ -43,8 +43,8 @@ pipeline {
             steps {
                 echo 'Checking out code from Git...'
                 cleanWs()
-                git branch: 'main',
-                    url: 'https://github.com/sunnysavita10/automated-research-report-generation.git'
+                git branch: 'master',
+                    url: 'https://github.com/bhavjeetsingh/Llm-Research-Generation.git'
             }
         }
 
