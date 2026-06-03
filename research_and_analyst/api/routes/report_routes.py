@@ -70,7 +70,7 @@ async def dashboard(request: Request):
 def generate_report(request: Request, topic: str = Form(...)):
     try:
         service = ReportService()
-        result = service.start_report_generation(topic, 2)
+        result = service.start_report_generation(topic, 1)
         thread_id = result["thread_id"]
 
         return request.app.templates.TemplateResponse(

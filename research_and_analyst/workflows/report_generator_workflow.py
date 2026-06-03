@@ -77,8 +77,9 @@ class AutonomousReportGenerator:
             )
             analysts = self._invoke_structured_llm(structured_llm, [
                 SystemMessage(content=system_prompt),
-                HumanMessage(content="Generate the set of analysts."),
+                HumanMessage(content=f"Generate exactly {max_analysts} analysts."),
             ])
+            analysts.analysts = analysts.analysts[:max_analysts]
             self.logger.info("Analysts created", count=len(analysts.analysts))
             return {"analysts": analysts.analysts}
         except Exception as e:
@@ -156,6 +157,57 @@ class AutonomousReportGenerator:
         except Exception as e:
             self.logger.error("Error generating conclusion", error=str(e))
             raise ResearchAnalystException("Failed to generate conclusion", e)
+
+    # ----------------------------------------------------------------------
+    def write_full_report(self, state: ResearchGraphState):
+        """Write report, introduction, and conclusion in a single LLM call."""
+        sections = state.get("sections", [])
+        topic = state.get("topic", "")
+
+        try:
+            if not sections:
+                sections = ["No sections generated — please verify interview stage."]
+            formatted_str_sections = "\n\n".join([f"{s}" for s in sections])
+            self.logger.info("Writing full report (report + intro + conclusion)", topic=topic)
+
+            system_prompt = REPORT_WRITER_INSTRUCTIONS.render(topic=topic)
+            report = self._invoke_llm([
+                SystemMessage(content=system_prompt),
+                HumanMessage(content="\n\n".join(sections))
+            ])
+            self.logger.info("Report content written")
+
+            intro_conclusion_prompt = INTRO_CONCLUSION_INSTRUCTIONS.render(
+                topic=topic, formatted_str_sections=formatted_str_sections
+            )
+            intro_conclusion = self._invoke_llm([
+                SystemMessage(content=intro_conclusion_prompt),
+                HumanMessage(content="Write BOTH the introduction AND the conclusion for this report. Use markdown. Start the introduction with '# ' and use '## Introduction' as section header. Use '## Conclusion' for the conclusion section.")
+            ])
+
+            content = report.content
+            if content.startswith("## Insights"):
+                content = content.strip("## Insights")
+
+            sources = None
+            if "## Sources" in content:
+                try:
+                    content, sources = content.split("\n## Sources\n")
+                except Exception:
+                    pass
+
+            final_report = (
+                intro_conclusion.content + "\n\n---\n\n" +
+                content + "\n\n---\n\n"
+            )
+            if sources:
+                final_report += "\n## Sources\n" + sources
+
+            self.logger.info("Full report written successfully")
+            return {"final_report": final_report}
+        except Exception as e:
+            self.logger.error("Error writing full report", error=str(e))
+            raise ResearchAnalystException("Failed to write full report", e)
 
     # ----------------------------------------------------------------------
     def finalize_report(self, state: ResearchGraphState):
@@ -344,10 +396,7 @@ class AutonomousReportGenerator:
             builder.add_node("create_analyst", self.create_analyst)
             builder.add_node("human_feedback", self.human_feedback)
             builder.add_node("conduct_interview", interview_graph)
-            builder.add_node("write_report", self.write_report)
-            builder.add_node("write_introduction", self.write_introduction)
-            builder.add_node("write_conclusion", self.write_conclusion)
-            builder.add_node("finalize_report", self.finalize_report)
+            builder.add_node("write_full_report", self.write_full_report)
 
             builder.add_edge(START, "create_analyst")
             builder.add_edge("create_analyst", "human_feedback")
@@ -356,11 +405,8 @@ class AutonomousReportGenerator:
                 initiate_all_interviews,
                 ["conduct_interview", END]
             )
-            builder.add_edge("conduct_interview", "write_report")
-            builder.add_edge("conduct_interview", "write_introduction")
-            builder.add_edge("conduct_interview", "write_conclusion")
-            builder.add_edge(["write_report", "write_introduction", "write_conclusion"], "finalize_report")
-            builder.add_edge("finalize_report", END)
+            builder.add_edge("conduct_interview", "write_full_report")
+            builder.add_edge("write_full_report", END)
 
             graph = builder.compile(interrupt_before=["human_feedback"], checkpointer=self.memory)
             self.logger.info("Report generation graph built successfully")

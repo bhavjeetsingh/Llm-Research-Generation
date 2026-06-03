@@ -36,6 +36,8 @@ You are tasked with creating a set of AI analyst personas. Follow these instruct
 4. Pick the top {{ max_analysts | default(3) }} themes.
 
 5. Assign one analyst to each theme.
+
+IMPORTANT: You MUST return EXACTLY {{ max_analysts | default(3) }} analysts. No more, no less.
 """)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -20,7 +20,11 @@ def retry_on_rate_limit(max_retries=5, base_delay=2.0, max_delay=60.0):
                         or "rate_limit" in error_str
                         or "tokens per minute" in error_str
                     )
-                    if not is_rate_limit:
+                    is_structured_output_error = (
+                        "400" in error_str
+                        and ("tool_use_failed" in error_str or "failed to call a function" in error_str)
+                    )
+                    if not is_rate_limit and not is_structured_output_error:
                         raise
                     last_exception = e
                     if attempt < max_retries - 1:
