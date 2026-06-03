@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
 from sqlalchemy.orm import Session
 from research_and_analyst.database.db_config import SessionLocal, User, hash_password, verify_password
 from research_and_analyst.api.services.report_service import ReportService
@@ -104,7 +104,7 @@ async def submit_feedback(request: Request, topic: str = Form(...), feedback: st
         },
     )
 
-@router.get("/download/{file_name}", response_class=HTMLResponse)
+@router.get("/download/{file_name}")
 async def download_report(file_name: str):
     service = ReportService()
     file_response = service.download_file(file_name)

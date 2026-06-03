@@ -113,7 +113,7 @@ class ModelLoader:
         """
         try:
             llm_block = self.config["llm"]
-            provider_key = os.getenv("LLM_PROVIDER", "google")
+            provider_key = os.getenv("LLM_PROVIDER", "groq")
 
             if provider_key not in llm_block:
                 log.error("LLM provider not found in configuration", provider=provider_key)
@@ -184,3 +184,5 @@ if __name__ == "__main__":
 
     except ResearchAnalystException as e:
         log.error("Critical failure in ModelLoader test", error=str(e))
+
+        #  uvicorn research_and_analyst.api.main:app --reload

@@ -3,8 +3,11 @@ import sys
 import re
 from datetime import datetime
 from typing import Optional
+from dotenv import load_dotenv
 from langgraph.types import Send
 from jinja2 import Template
+
+load_dotenv()
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(current_dir, "../../"))
@@ -43,8 +46,9 @@ class AutonomousReportGenerator:
     def __init__(self, llm):
         self.llm = llm
         self.memory = MemorySaver()
+        tavily_key = os.getenv("TAVILY_API_KEY", "")
         self.tavily_search = TavilySearchResults(
-            tavily_api_key="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"
+            tavily_api_key=tavily_key
         )
         self.logger = GLOBAL_LOGGER.bind(module="AutonomousReportGenerator")
 
