@@ -380,6 +380,12 @@
     <div class="card">
       <h2>📄 Topic: {{ topic }}</h2>
 
+      {% if error %}
+        <div style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 12px; padding: 16px 20px; margin-bottom: 25px; color: rgba(252, 165, 165, 0.9); font-size: 14px; line-height: 1.6;">
+          <strong>Error:</strong> {{ error }}
+        </div>
+      {% endif %}
+
       {% if not pdf_path %}
         <p class="subtitle">Your AI-generated report is ready! You can refine it below 👇</p>
         

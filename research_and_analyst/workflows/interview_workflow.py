@@ -13,6 +13,7 @@ from research_and_analyst.prompt_lib.prompt_locator import (
 )
 from research_and_analyst.logger import GLOBAL_LOGGER
 from research_and_analyst.exception.custom_exception import ResearchAnalystException
+from research_and_analyst.utils.retry import retry_on_rate_limit
 
 
 class InterviewGraphBuilder:
@@ -35,6 +36,14 @@ class InterviewGraphBuilder:
         self.memory = MemorySaver()
         self.logger = GLOBAL_LOGGER.bind(module="InterviewGraphBuilder")
 
+    @retry_on_rate_limit(max_retries=7, base_delay=5.0)
+    def _invoke_llm(self, messages):
+        return self.llm.invoke(messages)
+
+    @retry_on_rate_limit(max_retries=7, base_delay=5.0)
+    def _invoke_structured_llm(self, structured_llm, messages):
+        return structured_llm.invoke(messages)
+
     # ----------------------------------------------------------------------
     # 🔹 Step 1: Analyst generates question
     # ----------------------------------------------------------------------
@@ -48,7 +57,7 @@ class InterviewGraphBuilder:
         try:
             self.logger.info("Generating analyst question", analyst=analyst.name)
             system_prompt = ANALYST_ASK_QUESTIONS.render(goals=analyst.persona)
-            question = self.llm.invoke([SystemMessage(content=system_prompt)] + messages)
+            question = self._invoke_llm([SystemMessage(content=system_prompt)] + messages)
             self.logger.info("Question generated successfully", question_preview=question.content[:200])
             return {"messages": [question]}
 
@@ -67,7 +76,7 @@ class InterviewGraphBuilder:
             self.logger.info("Generating search query from conversation")
             structure_llm = self.llm.with_structured_output(SearchQuery)
             search_prompt = GENERATE_SEARCH_QUERY.render()
-            search_query = structure_llm.invoke([SystemMessage(content=search_prompt)] + state["messages"])
+            search_query = self._invoke_structured_llm(structure_llm, [SystemMessage(content=search_prompt)] + state["messages"])
 
             self.logger.info("Performing Tavily web search", query=search_query.search_query)
             search_docs = self.tavily_search.invoke(search_query.search_query)
@@ -103,7 +112,7 @@ class InterviewGraphBuilder:
         try:
             self.logger.info("Generating expert answer", analyst=analyst.name)
             system_prompt = GENERATE_ANSWERS.render(goals=analyst.persona, context=context)
-            answer = self.llm.invoke([SystemMessage(content=system_prompt)] + messages)
+            answer = self._invoke_llm([SystemMessage(content=system_prompt)] + messages)
             answer.name = "expert"
             self.logger.info("Expert answer generated successfully", preview=answer.content[:200])
             return {"messages": [answer]}
@@ -142,7 +151,7 @@ class InterviewGraphBuilder:
         try:
             self.logger.info("Generating report section", analyst=analyst.name)
             system_prompt = WRITE_SECTION.render(focus=analyst.description)
-            section = self.llm.invoke(
+            section = self._invoke_llm(
                 [SystemMessage(content=system_prompt)]
                 + [HumanMessage(content=f"Use this source to write your section: {context}")]
             )

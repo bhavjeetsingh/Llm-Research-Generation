@@ -67,23 +67,35 @@ async def dashboard(request: Request):
     return request.app.templates.TemplateResponse("dashboard.html", {"request": request, "user": SESSIONS[session_id]})
 
 @router.post("/generate_report", response_class=HTMLResponse)
-async def generate_report(request: Request, topic: str = Form(...)):
-    service = ReportService()
-    result = service.start_report_generation(topic, 3)
-    thread_id = result["thread_id"] 
+def generate_report(request: Request, topic: str = Form(...)):
+    try:
+        service = ReportService()
+        result = service.start_report_generation(topic, 2)
+        thread_id = result["thread_id"]
 
-    return request.app.templates.TemplateResponse(
-        "report_progress.html",
-        {
-            "request": request,
-            "topic": topic,
-            "feedback": "",
-            "thread_id": thread_id,
-        },
-    )
+        return request.app.templates.TemplateResponse(
+            "report_progress.html",
+            {
+                "request": request,
+                "topic": topic,
+                "feedback": "",
+                "thread_id": thread_id,
+            },
+        )
+    except Exception as e:
+        return request.app.templates.TemplateResponse(
+            "report_progress.html",
+            {
+                "request": request,
+                "topic": topic,
+                "feedback": "",
+                "error": str(e),
+                "thread_id": "",
+            },
+        )
 
 @router.post("/submit_feedback", response_class=HTMLResponse)
-async def submit_feedback(request: Request, topic: str = Form(...), feedback: str = Form(...), thread_id: str = Form(...)):
+def submit_feedback(request: Request, topic: str = Form(...), feedback: str = Form(...), thread_id: str = Form(...)):
     try:
         service = ReportService()
         service.submit_feedback(thread_id, feedback)

@@ -36,6 +36,7 @@ from research_and_analyst.prompt_lib.prompt_locator import (
 )
 from research_and_analyst.logger import GLOBAL_LOGGER
 from research_and_analyst.exception.custom_exception import ResearchAnalystException
+from research_and_analyst.utils.retry import retry_on_rate_limit
 
 
 class AutonomousReportGenerator:
@@ -52,6 +53,14 @@ class AutonomousReportGenerator:
         )
         self.logger = GLOBAL_LOGGER.bind(module="AutonomousReportGenerator")
 
+    @retry_on_rate_limit(max_retries=7, base_delay=5.0)
+    def _invoke_llm(self, messages):
+        return self.llm.invoke(messages)
+
+    @retry_on_rate_limit(max_retries=7, base_delay=5.0)
+    def _invoke_structured_llm(self, structured_llm, messages):
+        return structured_llm.invoke(messages)
+
     # ----------------------------------------------------------------------
     def create_analyst(self, state: GenerateAnalystsState):
         """Generate analyst personas based on topic and feedback."""
@@ -66,7 +75,7 @@ class AutonomousReportGenerator:
                 topic=topic, max_analysts=max_analysts,
                 human_analyst_feedback=human_analyst_feedback,
             )
-            analysts = structured_llm.invoke([
+            analysts = self._invoke_structured_llm(structured_llm, [
                 SystemMessage(content=system_prompt),
                 HumanMessage(content="Generate the set of analysts."),
             ])
@@ -96,7 +105,7 @@ class AutonomousReportGenerator:
                 sections = ["No sections generated — please verify interview stage."]
             self.logger.info("Writing report", topic=topic)
             system_prompt = REPORT_WRITER_INSTRUCTIONS.render(topic=topic)
-            report = self.llm.invoke([
+            report = self._invoke_llm([
                 SystemMessage(content=system_prompt),
                 HumanMessage(content="\n\n".join(sections))
             ])
@@ -117,7 +126,7 @@ class AutonomousReportGenerator:
             system_prompt = INTRO_CONCLUSION_INSTRUCTIONS.render(
                 topic=topic, formatted_str_sections=formatted_str_sections
             )
-            intro = self.llm.invoke([
+            intro = self._invoke_llm([
                 SystemMessage(content=system_prompt),
                 HumanMessage(content="Write the report introduction")
             ])
@@ -138,7 +147,7 @@ class AutonomousReportGenerator:
             system_prompt = INTRO_CONCLUSION_INSTRUCTIONS.render(
                 topic=topic, formatted_str_sections=formatted_str_sections
             )
-            conclusion = self.llm.invoke([
+            conclusion = self._invoke_llm([
                 SystemMessage(content=system_prompt),
                 HumanMessage(content="Write the report conclusion")
             ])
