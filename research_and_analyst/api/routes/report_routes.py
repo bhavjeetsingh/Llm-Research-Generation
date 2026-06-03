@@ -84,25 +84,34 @@ async def generate_report(request: Request, topic: str = Form(...)):
 
 @router.post("/submit_feedback", response_class=HTMLResponse)
 async def submit_feedback(request: Request, topic: str = Form(...), feedback: str = Form(...), thread_id: str = Form(...)):
-    service = ReportService()
-    service.submit_feedback(thread_id, feedback)
-
-    # Get latest report status
-    result = service.get_report_status(thread_id)
-    doc_path = result.get("docx_path")
-    pdf_path = result.get("pdf_path")
-
-    return request.app.templates.TemplateResponse(
-        "report_progress.html",
-        {
-            "request": request,
-            "topic": topic,
-            "feedback": feedback,
-            "doc_path": doc_path,
-            "pdf_path": pdf_path,
-            "thread_id": thread_id,
-        },
-    )
+    try:
+        service = ReportService()
+        service.submit_feedback(thread_id, feedback)
+        result = service.get_report_status(thread_id)
+        doc_path = result.get("docx_path")
+        pdf_path = result.get("pdf_path")
+        return request.app.templates.TemplateResponse(
+            "report_progress.html",
+            {
+                "request": request,
+                "topic": topic,
+                "feedback": feedback,
+                "doc_path": doc_path,
+                "pdf_path": pdf_path,
+                "thread_id": thread_id,
+            },
+        )
+    except Exception as e:
+        return request.app.templates.TemplateResponse(
+            "report_progress.html",
+            {
+                "request": request,
+                "topic": topic,
+                "feedback": feedback,
+                "error": str(e),
+                "thread_id": thread_id,
+            },
+        )
 
 @router.get("/download/{file_name}")
 async def download_report(file_name: str):
