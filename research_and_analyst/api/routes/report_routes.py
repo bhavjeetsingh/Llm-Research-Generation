@@ -1,11 +1,14 @@
 from fastapi import APIRouter, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSONResponse
 from sqlalchemy.orm import Session
+from threading import Thread
 from research_and_analyst.database.db_config import SessionLocal, User, hash_password, verify_password
 from research_and_analyst.api.services.report_service import ReportService
 
 router = APIRouter()
 SESSIONS = {}
+PIPELINE_STATUS = {}
+
 
 def get_db():
     db = SessionLocal()
@@ -66,12 +69,26 @@ async def dashboard(request: Request):
         return RedirectResponse(url="/")
     return request.app.templates.TemplateResponse("dashboard.html", {"request": request, "user": SESSIONS[session_id]})
 
+
+def _run_pipeline_background(topic, thread_id):
+    try:
+        PIPELINE_STATUS[thread_id] = "starting"
+        service = ReportService()
+        service.start_report_generation(topic, 1)
+        PIPELINE_STATUS[thread_id] = "ready"
+    except Exception as e:
+        PIPELINE_STATUS[thread_id] = f"error:{e}"
+
+
 @router.post("/generate_report", response_class=HTMLResponse)
 def generate_report(request: Request, topic: str = Form(...)):
     try:
-        service = ReportService()
-        result = service.start_report_generation(topic, 1)
-        thread_id = result["thread_id"]
+        import uuid
+        thread_id = str(uuid.uuid4())
+        PIPELINE_STATUS[thread_id] = "starting"
+
+        t = Thread(target=_run_pipeline_background, args=(topic, thread_id), daemon=True)
+        t.start()
 
         return request.app.templates.TemplateResponse(
             "report_progress.html",
@@ -94,9 +111,29 @@ def generate_report(request: Request, topic: str = Form(...)):
             },
         )
 
+
+@router.get("/pipeline_status/{thread_id}")
+def pipeline_status(thread_id: str):
+    status = PIPELINE_STATUS.get(thread_id, "unknown")
+    return JSONResponse({"status": status})
+
+
 @router.post("/submit_feedback", response_class=HTMLResponse)
 def submit_feedback(request: Request, topic: str = Form(...), feedback: str = Form(...), thread_id: str = Form(...)):
     try:
+        status = PIPELINE_STATUS.get(thread_id, "")
+        if status not in ("ready", ""):
+            return request.app.templates.TemplateResponse(
+                "report_progress.html",
+                {
+                    "request": request,
+                    "topic": topic,
+                    "feedback": feedback,
+                    "error": "Report is still generating. Please wait a moment and try again.",
+                    "thread_id": thread_id,
+                },
+            )
+
         service = ReportService()
         service.submit_feedback(thread_id, feedback)
         result = service.get_report_status(thread_id)

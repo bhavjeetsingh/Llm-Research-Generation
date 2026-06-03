@@ -19,6 +19,9 @@ def retry_on_rate_limit(max_retries=5, base_delay=2.0, max_delay=60.0):
                         or "rate limit" in error_str
                         or "rate_limit" in error_str
                         or "tokens per minute" in error_str
+                        or "resource_exhausted" in error_str
+                        or "resource exhausted" in error_str
+                        or "quota" in error_str
                     )
                     is_structured_output_error = (
                         "400" in error_str

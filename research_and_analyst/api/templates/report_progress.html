@@ -386,38 +386,44 @@
         </div>
       {% endif %}
 
-      {% if not pdf_path %}
+      <!-- Generating spinner (shown while pipeline runs) -->
+      <div id="generating-state" style="text-align:center; padding: 40px 0;">
+        <div class="processing-icon" style="font-size:48px; margin-bottom:20px;">🤖</div>
+        <div class="spinner" style="margin: 0 auto 20px;"></div>
+        <p style="font-size:18px; font-weight:600; color:rgba(255,255,255,0.9);">Generating your AI report... please wait</p>
+      </div>
+
+      <!-- Feedback form (hidden until pipeline ready) -->
+      <div id="feedback-state" style="display:none;">
         <p class="subtitle">Your AI-generated report is ready! You can refine it below 👇</p>
         
-        <!-- Feedback form -->
         <form id="feedbackForm" method="post" action="/submit_feedback">
-          <!-- Hidden topic -->
           <input type="hidden" name="topic" value="{{ topic }}">
-          <!-- Hidden thread_id (needed for workflow continuity) -->
           <input type="hidden" name="thread_id" value="{{ thread_id }}">
           
-          <!-- Feedback box -->
           <textarea 
             name="feedback" 
             rows="6" 
             placeholder="Enter feedback here...">{{ feedback }}</textarea>
           
-          <!-- Submit button -->
           <button type="submit">Submit Feedback</button>
         </form>
 
         <p class="note">
           💡 Tip: Provide specific feedback like "Add more technical explanation" or "Focus on real-world examples".
         </p>
+      </div>
 
-      {% else %}
-        <div class="success-icon">✅</div>
-        <h3>Final Report Ready!</h3>
-        <div class="downloads">
-          <a href="/download/{{ doc_path | basename }}" class="download-btn">⬇️ Download DOCX</a>
-          <a href="/download/{{ pdf_path | basename }}" class="download-btn">📘 Download PDF</a>
+      {% if pdf_path %}
+        <div id="feedback-state" style="display:block;">
+          <div class="success-icon">✅</div>
+          <h3>Final Report Ready!</h3>
+          <div class="downloads">
+            <a href="/download/{{ doc_path | basename }}" class="download-btn">⬇️ Download DOCX</a>
+            <a href="/download/{{ pdf_path | basename }}" class="download-btn">📘 Download PDF</a>
+          </div>
+          <p class="subtitle">Your report was successfully generated</p>
         </div>
-        <p class="subtitle">Your report was successfully generated</p>
       {% endif %}
     </div>
   </div>
@@ -431,14 +437,36 @@
     </div>
   </div>
 
-  <!-- Spinner script -->
   <script>
+    const threadId = "{{ thread_id }}";
+    const generatingState = document.getElementById("generating-state");
+    const feedbackState = document.getElementById("feedback-state");
     const fbForm = document.getElementById("feedbackForm");
     const fbSpinner = document.getElementById("spinner-overlay");
+
     if (fbForm && fbSpinner) {
       fbForm.addEventListener("submit", function() {
         fbSpinner.style.display = "flex";
       });
+    }
+
+    if (threadId && generatingState && feedbackState) {
+      function checkStatus() {
+        fetch("/pipeline_status/" + threadId)
+          .then(r => r.json())
+          .then(data => {
+            if (data.status === "ready") {
+              generatingState.style.display = "none";
+              feedbackState.style.display = "block";
+            } else if (data.status && data.status.startsWith("error:")) {
+              generatingState.innerHTML = '<div style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);border-radius:12px;padding:16px 20px;color:rgba(252,165,165,0.9);font-size:14px;"><strong>Error:</strong> ' + data.status.replace("error:", "") + '</div>';
+            } else {
+              setTimeout(checkStatus, 2000);
+            }
+          })
+          .catch(() => setTimeout(checkStatus, 3000));
+      }
+      checkStatus();
     }
   </script>
 </body>
