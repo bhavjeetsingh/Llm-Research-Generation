@@ -74,7 +74,7 @@ def _run_pipeline_background(topic, thread_id):
     try:
         PIPELINE_STATUS[thread_id] = "starting"
         service = ReportService()
-        service.start_report_generation(topic, 1)
+        service.start_report_generation(topic, 1, thread_id=thread_id)
         PIPELINE_STATUS[thread_id] = "ready"
     except Exception as e:
         PIPELINE_STATUS[thread_id] = f"error:{e}"

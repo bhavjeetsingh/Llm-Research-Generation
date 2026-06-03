@@ -17,10 +17,11 @@ class ReportService:
         self.graph = self.reporter.build_graph()
         self.logger = GLOBAL_LOGGER.bind(module="ReportService")
 
-    def start_report_generation(self, topic: str, max_analysts: int):
+    def start_report_generation(self, topic: str, max_analysts: int, thread_id: str = None):
         """Trigger the autonomous report pipeline."""
         try:
-            thread_id = str(uuid.uuid4())
+            if not thread_id:
+                thread_id = str(uuid.uuid4())
             thread = {"configurable": {"thread_id": thread_id}}
             self.logger.info("Starting report pipeline", topic=topic, thread_id=thread_id)
 
