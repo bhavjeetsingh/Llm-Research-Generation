@@ -11,7 +11,6 @@ RUN apt-get update && apt-get install -y \
 # Copy only package metadata first to leverage Docker cache
 COPY requirements.txt .
 COPY pyproject.toml .
-COPY README.md .
 
 # If the project exposes a python package dir, copy minimal files so pip can
 # resolve local packages if needed by requirements. This mirrors the prior
